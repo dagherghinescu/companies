@@ -1,0 +1,74 @@
+version = '2'
+
+[linters]
+default = 'none'
+enable = [
+  'bodyclose',
+  'dogsled',
+  'gochecknoglobals',
+  'gocognit',
+  'goconst',
+  'gocritic',
+  'gocyclo',
+  'goprintffuncname',
+  'govet',
+  'importas',
+  'ineffassign',
+  'interfacebloat',
+  'lll',
+  'misspell',
+  'nakedret',
+  'prealloc',
+  'predeclared',
+  'reassign',
+  'revive',
+  'staticcheck',
+  'testpackage',
+  'unconvert',
+  'unparam',
+  'unused',
+  'whitespace'
+]
+
+[linters.settings]
+[linters.settings.gocyclo]
+min-complexity = 10
+
+[linters.settings.govet]
+disable = [
+  'composites'
+]
+
+[linters.settings.lll]
+line-length = 120
+tab-width = 4
+
+[linters.settings.misspell]
+locale = 'US'
+
+[linters.exclusions]
+generated = 'lax'
+presets = [
+  'comments',
+  'common-false-positives',
+  'legacy',
+  'std-error-handling'
+]
+paths = [
+  'third_party$',
+  'builtin$',
+  'examples$'
+]
+
+[formatters]
+enable = [
+  'goimports'
+]
+
+[formatters.exclusions]
+generated = 'lax'
+paths = [
+  'third_party$',
+  'builtin$',
+  'examples$'
+]

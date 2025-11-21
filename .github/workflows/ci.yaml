@@ -1,0 +1,58 @@
+# Combined CI: formatting, vet, tests, golangci-lint, gosec, staticcheck, build
+# Triggers on pull_request
+
+name: CI - Lint, Security and Tests
+on: [pull_request]
+
+env:
+  GO_VERSION: '1.25'
+  GOLANGCI_LINT_VERSION: 'latest'
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Ensure modules downloaded
+        run: go mod download
+
+      - name: Install tools
+        run: |
+          GOFLAGS= go install github.com/securego/gosec/v2/cmd/gosec@latest
+          GOFLAGS= go install honnef.co/go/tools/cmd/staticcheck@latest
+
+      - name: Run gofmt
+        run: |
+          if [ -n "$(gofmt -l .)" ]; then
+            echo "gofmt found unformatted files:" && gofmt -l . && exit 1
+          else
+            echo "All files formatted"
+          fi
+
+      - name: Run go vet
+        run: go vet ./...
+
+      - name: Run tests
+        run: |
+          go test ./... -v
+
+      - name: Run staticcheck
+        run: staticcheck ./...
+
+      - name: Run gosec
+        run: gosec ./...
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.6
+
+      - name: Build (sanity)
+        run: GOOS=linux GOARCH=amd64 go build ./...
