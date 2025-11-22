@@ -11,6 +11,7 @@ import (
 
 	"github.com/dagherghinescu/companies/internal/app"
 	api "github.com/dagherghinescu/companies/internal/http"
+	"github.com/dagherghinescu/companies/internal/http/middleware"
 	"github.com/dagherghinescu/companies/internal/http/routes"
 	"github.com/dagherghinescu/companies/internal/logger"
 	"github.com/dagherghinescu/companies/internal/repository"
@@ -21,6 +22,7 @@ type Service struct {
 	Log    *zap.Logger
 	APICfg *api.Config
 	Repo   *repository.Company
+	JWTCfg *middleware.JWTConfig
 }
 
 // New creates a new Service instance, initializing logger and configuration.
@@ -51,6 +53,7 @@ func New(ctx context.Context) (*Service, error) {
 		Log:    logger,
 		APICfg: configs.httpSrv,
 		Repo:   &repo,
+		JWTCfg: configs.jwtCfg,
 	}, nil
 }
 
@@ -61,7 +64,7 @@ func Run(ctx context.Context, svc *Service) error {
 	)
 
 	r := gin.Default()
-	routes.RegisterCompanyRoutes(r, appl)
+	routes.RegisterCompanyRoutes(r, appl, svc.JWTCfg)
 
 	srv := &http.Server{
 		Addr:              svc.APICfg.Addr,
