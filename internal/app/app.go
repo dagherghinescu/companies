@@ -9,20 +9,23 @@ import (
 	"github.com/lib/pq"
 	"go.uber.org/zap"
 
+	"github.com/dagherghinescu/companies/internal/kafka"
 	"github.com/dagherghinescu/companies/internal/models"
 	"github.com/dagherghinescu/companies/internal/repository"
 )
 
 type App struct {
-	Logger *zap.Logger
-	DB     repository.Company
+	Logger   *zap.Logger
+	DB       repository.Company
+	Producer kafka.ProducerInterface
 }
 
 // New creates a new App instance
-func New(logger *zap.Logger, db repository.Company) *App {
+func New(logger *zap.Logger, db repository.Company, producer kafka.ProducerInterface) *App {
 	return &App{
-		Logger: logger,
-		DB:     db,
+		Logger:   logger,
+		DB:       db,
+		Producer: producer,
 	}
 }
 
@@ -40,6 +43,17 @@ func (a *App) CreateCompany(ctx context.Context, c *models.Company) error {
 			return ErrCompanyAlreadyExists
 		}
 
+		return err
+	}
+
+	event := map[string]interface{}{
+		"id":     c.ID.String(),
+		"name":   *c.Name,
+		"action": "created",
+	}
+
+	err = a.Producer.Publish(ctx, c.ID.String(), event)
+	if err != nil {
 		return err
 	}
 
@@ -69,6 +83,10 @@ func (a *App) GetCompany(ctx context.Context, id uuid.UUID) (*models.Company, er
 
 // UpdateCompany updates an existing company
 func (a *App) PatchCompany(ctx context.Context, id uuid.UUID, fields map[string]interface{}) error {
+	if len(fields) > 0 {
+		return nil
+	}
+
 	err := a.DB.Patch(ctx, id, fields)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) || errors.Is(err, ErrCompanyNotFound) {
@@ -83,6 +101,16 @@ func (a *App) PatchCompany(ctx context.Context, id uuid.UUID, fields map[string]
 		return err
 	}
 
+	event := map[string]interface{}{
+		"id":     id.String(),
+		"action": "updated",
+		"fields": fields,
+	}
+
+	if err := a.Producer.Publish(ctx, id.String(), event); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -93,6 +121,15 @@ func (a *App) DeleteCompany(ctx context.Context, id uuid.UUID) error {
 			return ErrCompanyNotFound
 		}
 
+		return err
+	}
+
+	event := map[string]interface{}{
+		"id":     id.String(),
+		"action": "deleted",
+	}
+
+	if err := a.Producer.Publish(ctx, id.String(), event); err != nil {
 		return err
 	}
 

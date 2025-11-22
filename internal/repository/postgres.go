@@ -64,7 +64,6 @@ func (r *postgresRepo) GetByID(ctx context.Context, id uuid.UUID) (*models.Compa
 // Patch updates only the specified columns in updates for the company with id.
 func (r *postgresRepo) Patch(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error {
 	if len(updates) == 0 {
-		// nothing to do
 		return nil
 	}
 

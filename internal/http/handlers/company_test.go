@@ -39,6 +39,12 @@ func (m *mockCompanyRepo) Delete(ctx context.Context, id uuid.UUID) error {
 	return m.DeleteFn(ctx, id)
 }
 
+// MockProducer does nothing
+type mockProducer struct{}
+
+func (m *mockProducer) Publish(ctx context.Context, key string, value any) error { return nil }
+func (m *mockProducer) Close() error                                             { return nil }
+
 func TestGetCompanyHandler(t *testing.T) {
 	id := uuid.New()
 	company := &models.Company{ID: id, Name: ptrString("Acme")}
@@ -93,10 +99,11 @@ func TestGetCompanyHandler(t *testing.T) {
 			router := gin.New()
 
 			mockRepo := &mockCompanyRepo{}
+			mockProducer := &mockProducer{}
 			tt.mockSetup(mockRepo)
 
 			logger := zap.NewNop()
-			appl := app.New(logger, mockRepo)
+			appl := app.New(logger, mockRepo, mockProducer)
 
 			router.GET("/companies/:id", handlers.GetCompany(appl))
 
@@ -162,10 +169,11 @@ func TestCreateCompanyHandler(t *testing.T) {
 			router := gin.New()
 
 			mockRepo := &mockCompanyRepo{}
+			mockProducer := &mockProducer{}
 			tt.mockSetup(mockRepo)
 
 			logger := zap.NewNop()
-			appl := app.New(logger, mockRepo)
+			appl := app.New(logger, mockRepo, mockProducer)
 
 			router.POST("/companies", handlers.CreateCompany(appl))
 
