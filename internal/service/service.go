@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -25,6 +27,7 @@ type Service struct {
 	Repo          *repository.Company
 	JWTCfg        *middleware.JWTConfig
 	KafkaProducer *kafka.Producer
+	DB            *sql.DB
 }
 
 // New creates a new Service instance, initializing logger and configuration.
@@ -49,6 +52,13 @@ func New(ctx context.Context) (*Service, error) {
 		return nil, fmt.Errorf("failed to DB clients: %w", err)
 	}
 
+	username := os.Getenv("ADMIN_USERNAME")
+	password := os.Getenv("ADMIN_PASSWORD")
+	err = repository.EnsureAdminUser(ctx, db, username, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create admin user: %w", err)
+	}
+
 	repo := repository.NewPostgresRepo(db)
 
 	kafkaProducer := kafka.NewProducer(configs.kafkaCfg)
@@ -59,6 +69,7 @@ func New(ctx context.Context) (*Service, error) {
 		Repo:          &repo,
 		JWTCfg:        configs.jwtCfg,
 		KafkaProducer: kafkaProducer,
+		DB:            db,
 	}, nil
 }
 
@@ -70,7 +81,7 @@ func Run(ctx context.Context, svc *Service) error {
 	)
 
 	r := gin.Default()
-	routes.RegisterCompanyRoutes(r, appl, svc.JWTCfg)
+	routes.RegisterCompanyRoutes(r, appl, svc.JWTCfg, svc.DB)
 
 	srv := &http.Server{
 		Addr:              svc.APICfg.Addr,
