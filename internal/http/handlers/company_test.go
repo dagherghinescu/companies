@@ -42,8 +42,8 @@ func (m *mockCompanyRepo) Delete(ctx context.Context, id uuid.UUID) error {
 // MockProducer does nothing
 type mockProducer struct{}
 
-func (m *mockProducer) Publish(ctx context.Context, key string, value any) error { return nil }
-func (m *mockProducer) Close() error                                             { return nil }
+func (m *mockProducer) Publish(_ context.Context, _ string, _ any) error { return nil }
+func (m *mockProducer) Close() error                                     { return nil }
 
 func TestGetCompanyHandler(t *testing.T) {
 	id := uuid.New()
