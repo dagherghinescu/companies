@@ -1,6 +1,18 @@
-version: "3.9"
-
 services:
+  postgres:
+    image: postgres:17
+    container_name: companies_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: companies
+      POSTGRES_PASSWORD: companies
+      POSTGRES_DB: companies
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/initdb:/docker-entrypoint-initdb.d
+
   app:
     build: .
     container_name: companies_app
@@ -8,3 +20,8 @@ services:
       - .env
     ports:
       - "8080:8080"
+    depends_on:
+      - postgres
+
+volumes:
+  postgres_data:

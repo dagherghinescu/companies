@@ -3,20 +3,24 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"github.com/dagherghinescu/companies/internal/app"
 	api "github.com/dagherghinescu/companies/internal/http"
 	"github.com/dagherghinescu/companies/internal/http/routes"
 	"github.com/dagherghinescu/companies/internal/logger"
+	"github.com/dagherghinescu/companies/internal/repository"
 )
 
 // Service holds the application dependencies and configuration.
 type Service struct {
 	Log    *zap.Logger
 	APICfg *api.Config
+	Repo   *repository.Company
 }
 
 // New creates a new Service instance, initializing logger and configuration.
@@ -33,18 +37,31 @@ func New(ctx context.Context) (*Service, error) {
 
 	logger, err := logger.Init()
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to initialize logger: %w", err)
 	}
+
+	db, err := repository.NewDBClient(configs.dbCfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to DB clients: %w", err)
+	}
+
+	repo := repository.NewPostgresRepo(db)
 
 	return &Service{
 		Log:    logger,
 		APICfg: configs.httpSrv,
+		Repo:   &repo,
 	}, nil
 }
 
 func Run(ctx context.Context, svc *Service) error {
+	appl := app.New(
+		svc.Log,
+		*svc.Repo,
+	)
+
 	r := gin.Default()
-	routes.RegisterCompanyRoutes(r)
+	routes.RegisterCompanyRoutes(r, appl)
 
 	srv := &http.Server{
 		Addr:              svc.APICfg.Addr,
