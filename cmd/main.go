@@ -2,38 +2,30 @@ package main
 
 import (
 	"context"
-	"net/http"
-	"time"
+	"log"
+	"os/signal"
+	"syscall"
 
-	"github.com/gin-gonic/gin"
-	"go.uber.org/zap"
-
-	api "github.com/dagherghinescu/companies/internal/http"
-	"github.com/dagherghinescu/companies/internal/http/routes"
+	"github.com/dagherghinescu/companies/internal/service"
 )
 
 func main() {
-	logger, err := zap.NewProduction()
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	svc, err := service.New(ctx)
 	if err != nil {
-		panic(err)
+		log.Printf("could not initialize service: %+v", err)
+		return
+	}
+	defer svc.Close()
+
+	if err := service.Run(ctx, svc); err != nil {
+		log.Printf("could not start service: %+v", err)
+		return
 	}
 
-	r := gin.Default()
-	routes.RegisterCompanyRoutes(r)
-
-	srv := &http.Server{
-		Addr:              ":8080",
-		Handler:           r,
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      10 * time.Second,
-		IdleTimeout:       120 * time.Second,
-	}
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	if err := api.StartServer(ctx, logger, srv); err != nil {
-		logger.Fatal("Server error", zap.Error(err))
-	}
+	svc.Log.Info("Application is running")
+	<-ctx.Done()
+	svc.Log.Info("Shutting down application")
 }
