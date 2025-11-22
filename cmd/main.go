@@ -15,7 +15,7 @@ func main() {
 
 	svc, err := service.New(ctx)
 	if err != nil {
-		log.Printf("could not initialise service: %+v", err)
+		log.Printf("could not initialize service: %+v", err)
 		return
 	}
 	defer svc.Close()
