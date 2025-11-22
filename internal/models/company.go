@@ -16,10 +16,10 @@ const (
 
 // Company represents a company entity
 type Company struct {
-	ID              uuid.UUID   `json:"id" db:"id"`
-	Name            string      `json:"name" db:"name"`
-	Description     string      `json:"description,omitempty" db:"description"`
-	AmountEmployees int         `json:"amount_employees" db:"amount_employees"`
-	Registered      bool        `json:"registered" db:"registered"`
-	Type            CompanyType `json:"type" db:"type"`
+	ID              uuid.UUID    `json:"id" db:"id"`
+	Name            *string      `json:"name" db:"name"`
+	Description     *string      `json:"description,omitempty" db:"description"`
+	AmountEmployees *int         `json:"amount_of_employees" db:"amount_of_employees"`
+	Registered      *bool        `json:"registered" db:"registered"`
+	Type            *CompanyType `json:"type" db:"type"`
 }

@@ -61,23 +61,30 @@ func (r *postgresRepo) GetByID(ctx context.Context, id uuid.UUID) (*models.Compa
 	return &c, nil
 }
 
-// Update modifies an existing company
-func (r *postgresRepo) Update(ctx context.Context, c *models.Company) error {
-	query := r.sb.Update("companies").
-		Set("name", c.Name).
-		Set("description", c.Description).
-		Set("amount_employees", c.AmountEmployees).
-		Set("registered", c.Registered).
-		Set("type", c.Type).
-		Where(sq.Eq{"id": c.ID})
+// Patch updates only the specified columns in updates for the company with id.
+func (r *postgresRepo) Patch(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		// nothing to do
+		return nil
+	}
 
-	sqlStr, args, err := query.ToSql()
+	q := r.sb.Update("companies")
+	for col, val := range updates {
+		q = q.Set(col, val)
+	}
+	q = q.Where(sq.Eq{"id": id})
+
+	sqlStr, args, err := q.ToSql()
 	if err != nil {
 		return err
 	}
 
 	_, err = r.db.ExecContext(ctx, sqlStr, args...)
-	return err
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Delete removes a company by ID

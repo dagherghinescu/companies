@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 
+	"github.com/dagherghinescu/companies/internal/app"
 	api "github.com/dagherghinescu/companies/internal/http"
 	"github.com/dagherghinescu/companies/internal/http/routes"
 	"github.com/dagherghinescu/companies/internal/logger"
@@ -54,8 +55,13 @@ func New(ctx context.Context) (*Service, error) {
 }
 
 func Run(ctx context.Context, svc *Service) error {
+	appl := app.New(
+		svc.Log,
+		*svc.Repo,
+	)
+
 	r := gin.Default()
-	routes.RegisterCompanyRoutes(r)
+	routes.RegisterCompanyRoutes(r, appl)
 
 	srv := &http.Server{
 		Addr:              svc.APICfg.Addr,
