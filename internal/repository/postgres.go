@@ -28,7 +28,7 @@ func NewPostgresRepo(db *sql.DB) Company {
 // Create inserts a new company record
 func (r *postgresRepo) Create(ctx context.Context, c *models.Company) error {
 	query := r.sb.Insert("companies").
-		Columns("id", "name", "description", "amount_employees", "registered", "type").
+		Columns("id", "name", "description", "amount_of_employees", "registered", "type").
 		Values(c.ID, c.Name, c.Description, c.AmountEmployees, c.Registered, c.Type)
 
 	sqlStr, args, err := query.ToSql()
@@ -42,7 +42,7 @@ func (r *postgresRepo) Create(ctx context.Context, c *models.Company) error {
 
 // GetByID retrieves a company by ID
 func (r *postgresRepo) GetByID(ctx context.Context, id uuid.UUID) (*models.Company, error) {
-	query := r.sb.Select("id", "name", "description", "amount_employees", "registered", "type").
+	query := r.sb.Select("id", "name", "description", "amount_of_employees", "registered", "type").
 		From("companies").
 		Where(sq.Eq{"id": id})
 
