@@ -86,12 +86,155 @@ This keeps the entrypoint simple and follows Go best practices.
 
 ### Architecture Decisions
 * Clear separation of concerns: `service`, `http`, `logger`, `config`, `routes`.
-* Service ready for future integration with database, Kafka, and business logic.
+* Service designed with extensibility in mind: easily integrates with Postgres, Kafka, and external services.
+* JWT-based authentication implemented for protected endpoints.
+* Event-driven architecture: Kafka used to publish events on all mutating operations (create, update, delete).
+* Repository layer abstracts database interactions, making the service testable and maintainable.
+* Business logic encapsulated in the service layer, separate from HTTP handlers.
+* Dockerized environment for local development and testing with Postgres and Kafka.
 
-## Next Steps (Planned / TODO)
+## Helper Scripts and Makefile
 
-* Implement repository layer with Postgres.
-* Add JWT authentication middleware for protected endpoints.
-* Implement Kafka event publishing on mutating operations.
-* Dockerize the application and external services.
-* Add health and readiness endpoints for observability.
+The project includes a `Makefile` and several helper scripts to simplify common tasks:
+
+### Makefile
+
+| Command        | Description |
+|----------------|-------------|
+| `make up`      | Builds and starts the Dockerized environment (Postgres, Kafka, the service) in detached mode. |
+| `make down`    | Stops and removes all Docker containers defined in the compose file. |
+| `make kafka-topic` | Runs the `create_kafka_topic.sh` script to create the required Kafka topic (`companies-events`). |
+| `make kafka-consume` | Runs the `kafka_consume.sh` script to consume and display events from the Kafka topic for debugging or testing. |
+| `make test`    | Runs the `tests.sh` script which executes integration and unit tests against the service. |
+
+### Scripts
+
+* `create_kafka_topic.sh`  
+  Automatically finds the Kafka container, enters it, and creates the `companies-events` topic if it does not exist. Prints a success message once the topic is created.
+
+* `kafka_consume.sh`  
+  Enters the Kafka container and starts a console consumer on the `companies-events` topic, showing published events in real-time.
+
+* `tests.sh`  
+  Runs all the integration and unit tests for the service. It can also be adapted to inject JWT tokens, setup test data, or run tests against the Kafka and Postgres containers.
+
+These scripts and Makefile targets simplify setup, testing, and development workflows, allowing you to manage Docker services and Kafka topics without manually entering containers.
+
+## Requirements
+
+To run this project locally, you need the following installed on your system:
+
+* **Docker** – to run the application, Postgres, and Kafka containers.  
+  [Get Docker](https://docs.docker.com/get-docker/)
+
+* **Docker Compose** – to orchestrate multi-container services.  
+  Usually included with Docker Desktop; verify with `docker-compose --version`.
+
+* **Make** – to run Makefile targets for building, starting, and stopping services.  
+  [Install Make](https://www.gnu.org/software/make/)
+
+* **cURL** (or any HTTP client) – to test the REST API endpoints.  
+  Available on most Unix systems by default.
+
+* **Go** (for building the service locally without Docker, optional) – minimum version required: 1.20+.  
+  [Install Go](https://golang.org/doc/install)
+
+> Note: The Makefile automates most tasks like building containers, creating Kafka topics, and running tests. Using `make up` is sufficient if you have Docker and Docker Compose installed.
+
+## How to Run
+
+This project uses Docker Compose and a Makefile to simplify setup, testing, and running the service locally.
+
+---
+
+### 1. Start the Environment
+
+Build and start all services (Postgres, Kafka, and the application) in detached mode:
+
+```bash
+make up
+```
+
+This will:
+* Build the Docker images.
+* Start Postgres, Kafka, and the service container.
+* Set up any initial configuration defined in the Docker Compose file.
+
+2. Create Kafka Topic
+
+You need to create the Kafka topic manually, run:
+
+```bash
+make kafka-topic
+```
+
+This will create the `companies-events` topic inside the Kafka container.
+
+3. Obtain a JWT Token
+The service uses JWT authentication for protected endpoints. Login as the admin user:
+
+```bash
+curl -X POST http://localhost:8080/login \
+-H "Content-Type: application/json" \
+-d '{
+  "username": "admin",
+  "password": "admin123"
+}'
+```
+
+You will receive a JSON response with a token:
+
+```json
+{"token": "<JWT_TOKEN>"}
+```
+Use this token for requests that require authentication.
+
+4. Create a Company
+```bash
+curl -X POST http://localhost:8080/companies \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer <JWT_TOKEN>" \
+-d '{
+  "name": "Acme Corp",
+  "description": "A sample company",
+  "amount_of_employees": 100,
+  "registered": true,
+  "type": "Corporations"
+}'
+```
+
+5. Get a Company
+
+```bash
+curl -X GET http://localhost:8080/companies/<COMPANY_ID> \
+-H "Content-Type: application/json"
+6. Update a Company
+bash
+Copy code
+curl -X PATCH http://localhost:8080/companies/<COMPANY_ID> \
+-H "Content-Type: application/json" \
+-H "Authorization: Bearer <JWT_TOKEN>" \
+-d '{
+  "description": "Updated description",
+  "amount_of_employees": 120
+}'
+```
+
+7. Delete a Company
+```bash
+curl -X DELETE http://localhost:8080/companies/<COMPANY_ID> \
+-H "Authorization: Bearer <JWT_TOKEN>"
+```
+
+8. Run Tests
+Run the integration and unit tests:
+```bash
+make test
+```
+
+9. Stop the Environment
+Once finished, stop all services:
+
+```bash
+make down
+```
