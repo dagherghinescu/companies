@@ -4,9 +4,11 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"log"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/google/uuid"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/dagherghinescu/companies/internal/models"
 )
@@ -64,7 +66,6 @@ func (r *postgresRepo) GetByID(ctx context.Context, id uuid.UUID) (*models.Compa
 // Patch updates only the specified columns in updates for the company with id.
 func (r *postgresRepo) Patch(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error {
 	if len(updates) == 0 {
-		// nothing to do
 		return nil
 	}
 
@@ -100,4 +101,35 @@ func (r *postgresRepo) Delete(ctx context.Context, id uuid.UUID) error {
 
 	_, err = r.db.ExecContext(ctx, sqlStr, args...)
 	return err
+}
+
+// EnsureAdminUser creates the admin user if it doesn't exist.
+func EnsureAdminUser(ctx context.Context, db *sql.DB, username, password string) error {
+	var exists bool
+	err := db.QueryRowContext(ctx, "SELECT EXISTS(SELECT 1 FROM users WHERE username=$1)", username).Scan(&exists)
+	if err != nil {
+		return err
+	}
+
+	if exists {
+		log.Println("Admin user already exists")
+		return nil
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	id := uuid.New()
+	_, err = db.ExecContext(ctx,
+		"INSERT INTO users (id, username, password_hash) VALUES ($1, $2, $3)",
+		id, username, string(hash),
+	)
+	if err != nil {
+		return err
+	}
+
+	log.Println("Admin user created with username:", username)
+	return nil
 }

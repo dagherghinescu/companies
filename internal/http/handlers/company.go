@@ -96,7 +96,7 @@ func UpdateCompany(appl *app.App) gin.HandlerFunc {
 			updates["description"] = input.Description
 		}
 		if input.AmountEmployees != nil {
-			updates["amount_employees"] = input.AmountEmployees
+			updates["amount_of_employees"] = input.AmountEmployees
 		}
 		if input.Registered != nil {
 			updates["registered"] = input.Registered
@@ -113,6 +113,7 @@ func UpdateCompany(appl *app.App) gin.HandlerFunc {
 		err = appl.PatchCompany(c.Request.Context(), id, updates)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			appl.Logger.Error("error patching company", zap.Error(err))
 			return
 		}
 

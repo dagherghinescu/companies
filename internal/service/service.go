@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -13,16 +15,19 @@ import (
 	api "github.com/dagherghinescu/companies/internal/http"
 	"github.com/dagherghinescu/companies/internal/http/middleware"
 	"github.com/dagherghinescu/companies/internal/http/routes"
+	"github.com/dagherghinescu/companies/internal/kafka"
 	"github.com/dagherghinescu/companies/internal/logger"
 	"github.com/dagherghinescu/companies/internal/repository"
 )
 
 // Service holds the application dependencies and configuration.
 type Service struct {
-	Log    *zap.Logger
-	APICfg *api.Config
-	Repo   *repository.Company
-	JWTCfg *middleware.JWTConfig
+	Log           *zap.Logger
+	APICfg        *api.Config
+	Repo          *repository.Company
+	JWTCfg        *middleware.JWTConfig
+	KafkaProducer *kafka.Producer
+	DB            *sql.DB
 }
 
 // New creates a new Service instance, initializing logger and configuration.
@@ -47,13 +52,24 @@ func New(ctx context.Context) (*Service, error) {
 		return nil, fmt.Errorf("failed to DB clients: %w", err)
 	}
 
+	username := os.Getenv("ADMIN_USERNAME")
+	password := os.Getenv("ADMIN_PASSWORD")
+	err = repository.EnsureAdminUser(ctx, db, username, password)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create admin user: %w", err)
+	}
+
 	repo := repository.NewPostgresRepo(db)
 
+	kafkaProducer := kafka.NewProducer(configs.kafkaCfg)
+
 	return &Service{
-		Log:    logger,
-		APICfg: configs.httpSrv,
-		Repo:   &repo,
-		JWTCfg: configs.jwtCfg,
+		Log:           logger,
+		APICfg:        configs.httpSrv,
+		Repo:          &repo,
+		JWTCfg:        configs.jwtCfg,
+		KafkaProducer: kafkaProducer,
+		DB:            db,
 	}, nil
 }
 
@@ -61,10 +77,11 @@ func Run(ctx context.Context, svc *Service) error {
 	appl := app.New(
 		svc.Log,
 		*svc.Repo,
+		svc.KafkaProducer,
 	)
 
 	r := gin.Default()
-	routes.RegisterCompanyRoutes(r, appl, svc.JWTCfg)
+	routes.RegisterCompanyRoutes(r, appl, svc.JWTCfg, svc.DB)
 
 	srv := &http.Server{
 		Addr:              svc.APICfg.Addr,
