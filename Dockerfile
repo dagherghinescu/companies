@@ -9,7 +9,7 @@ COPY . .
 
 RUN go build -o companies ./cmd/main.go
 
-FROM alpine:3.18
+FROM scratch
 
 WORKDIR /app
 
